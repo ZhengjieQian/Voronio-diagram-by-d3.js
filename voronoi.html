@@ -7,6 +7,8 @@
 </head>
 <body>
 <svg width="800" height="600"></svg>
+<div id="valueDisplay" style="position: absolute; right: 10px; top: 10px;"></div>
+<button id="clearButton" style="position: absolute; right: 10px; top: 40px;">Clear Points</button>
 
 <script>
   // Create an SVG element
@@ -33,9 +35,15 @@
   // Add a click event to add points
   svg.on("click", function() {
     const [x, y] = d3.mouse(this); // Get the mouse click position
-    const value = Math.floor(Math.random() * 11); // Random value between 0 and 10
-    points.push({ x, y, value }); // Add the point to the array
+
+    // Calculate the value using natural neighbor interpolation
+    const interpolatedValue = calculateInterpolatedValue({ x, y });
+
+    points.push({ x, y, value: interpolatedValue }); // Add the point with the interpolated value
     updateDiagram(); // Update the diagram
+
+    // Display the added value with 2 decimal places and calculation process on the right part of the webpage
+    displayAddedValue(interpolatedValue);
   });
 
   // Function to update the Voronoi diagram
@@ -59,8 +67,9 @@
 
     // Remove the existing points
     svg.selectAll(".point").remove();
+    svg.selectAll(".point-label").remove();
 
-    // Draw points with values
+    // Draw points with values and numbers
     svg.selectAll(".point")
             .data(points)
             .enter().append("circle")
@@ -68,10 +77,75 @@
             .attr("cx", d => d.x)
             .attr("cy", d => d.y)
             .attr("r", 3)
-            .style("fill", "red")
-            .append("title")
-            .text(d => `Value: ${d.value}`);
+            .style("fill", "red");
+
+    svg.selectAll(".point-label")
+            .data(points)
+            .enter().append("text")
+            .attr("class", "point-label")
+            .attr("x", d => d.x - 50)
+            .attr("y", d => d.y - 5)
+            .text((d, i) => `#point: ${i + 1} value: ${d.value}`)
+            .style("font-size", "10px");
   }
+
+  // Function to calculate the interpolated value using natural neighbor interpolation
+  function calculateInterpolatedValue(newPoint) {
+    const distances = [];
+    const values = [];
+
+    // Calculate distances to existing points and collect their values
+    for (const point of points) {
+      const dx = point.x - newPoint.x;
+      const dy = point.y - newPoint.y;
+      const distanceSquared = dx * dx + dy * dy;
+
+      if (distanceSquared === 0) {
+        // If the new point coincides with an existing point, return its value
+        const interpolatedValue = point.value.toFixed(2); // Return with 2 decimal places
+        console.log(`Interpolated Value: ${interpolatedValue}`);
+        return interpolatedValue;
+      }
+
+      distances.push(distanceSquared);
+      values.push(point.value);
+    }
+
+    // Calculate Sibson weights
+    const weights = distances.map((distanceSquared) => 1 / distanceSquared);
+
+    // Calculate the interpolated value using Sibson weights
+    const sumWeights = weights.reduce((acc, weight) => acc + weight, 0);
+    let interpolatedValue = 0;
+
+    for (let i = 0; i < weights.length; i++) {
+      interpolatedValue += (weights[i] / sumWeights) * values[i];
+      console.log(`Step ${i + 1}: ${values[i]} * (${weights[i]} / ${sumWeights})`);
+    }
+
+    interpolatedValue = interpolatedValue.toFixed(2); // Round to 2 decimal places
+    console.log(`Interpolated Value: ${interpolatedValue}`);
+
+    return interpolatedValue; // Return the final interpolated value
+  }
+
+
+  // Function to display the added value on the right part of the webpage
+  function displayAddedValue(value) {
+    const valueDisplay = document.getElementById("valueDisplay");
+    valueDisplay.innerText = `Added Value: ${value}`;
+  }
+
+  // Add a click event to clear all added points
+  const clearButton = document.getElementById("clearButton");
+  clearButton.addEventListener("click", function() {
+    // Keep the original 10 points and remove any additional points
+    points = points.slice(0, 10);
+    updateDiagram(); // Update the diagram to remove added points
+    // Clear the value display
+    const valueDisplay = document.getElementById("valueDisplay");
+    valueDisplay.innerText = "";
+  });
 </script>
 </body>
 </html>
