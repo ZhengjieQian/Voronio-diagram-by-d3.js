@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voronoi Diagram with D3.js</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+<!-- Add a border to the SVG -->
+<svg id="voronoi-svg" width="600" height="400" style="border: 1px solid black;"></svg>
+
+<!-- Create a div for displaying point values -->
+<div id="point-values" style="position: absolute; top: 0; right: 800px;background-color: white; padding: 10px;"></div>
+
+<script>
+    // Number of random points
+    const numPoints = 10;
+
+    // Generate random points within the SVG dimensions along with random values
+    const points = d3.range(numPoints).map(function(i) {
+        const x = Math.random() * 600;
+        const y = Math.random() * 400;
+        const value = Math.floor(Math.random() * 11); // Random value from 0 to 10
+        return { x, y, value, pointNumber: i + 1 };
+    });
+
+    // Create a Voronoi diagram generator
+    const voronoi = d3.voronoi()
+        .extent([[-1, -1], [601, 401]]); // Set the extent to cover the SVG area
+
+    // Generate Voronoi polygons
+    const polygons = voronoi.polygons(points.map(d => [d.x, d.y]));
+
+    // Create an SVG element
+    const svg = d3.select("#voronoi-svg");
+
+    // Draw the Voronoi polygons
+    svg.selectAll("path")
+        .data(polygons)
+        .enter().append("path")
+        .attr("d", function(d) {
+            return "M" + d.join("L") + "Z";
+        })
+        .attr("fill", "none")
+        .attr("stroke", "black");
+
+    // Draw the points and labels
+    svg.selectAll("circle")
+        .data(points)
+        .enter().append("circle")
+        .attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; })
+        .attr("r", 4)
+        .attr("fill", "red");
+
+    // Add labels for each point
+    svg.selectAll("text")
+        .data(points)
+        .enter().append("text")
+        .attr("x", function(d) { return d.x; })
+        .attr("y", function(d) { return d.y - 10; })
+        .attr("text-anchor", "middle") // Center the text horizontally
+        .attr("font-size", "10px") // Set the font size
+        .text(function(d) { return `#point:${d.pointNumber} value:${d.value}`; });
+
+    // Display point values in the div
+    const pointValuesDiv = d3.select("#point-values");
+    points.forEach(function(point) {
+        pointValuesDiv.append("p")
+            .text(`Point ${point.pointNumber}: Value:${point.value}`);
+    });
+</script>
+</body>
+</html>
