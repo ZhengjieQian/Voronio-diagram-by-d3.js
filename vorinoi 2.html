@@ -1,74 +1,158 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voronoi Diagram with D3.js</title>
     <script src="https://d3js.org/d3.v5.min.js"></script>
+    <style>
+        /* Add some CSS styling if needed */
+        .cell {
+            fill: none;
+            stroke: #000;
+            stroke-opacity: 0.5;
+        }
+        .point-label {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        .cell-area {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
-<!-- Add a border to the SVG -->
-<svg id="voronoi-svg" width="600" height="400" style="border: 1px solid black;"></svg>
-
-<!-- Create a div for displaying point values -->
-<div id="point-values" style="position: absolute; top: 0; right: 800px;background-color: white; padding: 10px;"></div>
+<svg width="800" height="500"></svg>
+<div id="point-values" style="position: absolute; top: 10px; right: 100px;"></div>
 
 <script>
-    // Number of random points
+    // Initialize the points array with 10 random points and values
     const numPoints = 10;
-
-    // Generate random points within the SVG dimensions along with random values
-    const points = d3.range(numPoints).map(function(i) {
-        const x = Math.random() * 600;
-        const y = Math.random() * 400;
+    const points = [];
+    for (let i = 0; i < numPoints; i++) {
+        const x = Math.random() * 500;
+        const y = Math.random() * 500;
         const value = Math.floor(Math.random() * 11); // Random value from 0 to 10
-        return { x, y, value, pointNumber: i + 1 };
-    });
+        points.push({ x, y, value });
+    }
 
-    // Create a Voronoi diagram generator
+    // Function to calculate the value of a point using a natural neighbor algorithm
+    function natural_neighbor(x, y) {
+        return 12; // Replace with your own algorithm.
+    }
+
+
+
+/*    function natural_neighbor(x, y) {
+        // Calculate the sum
+        let sum = 0;
+
+        // Iterate through each point in the array
+        for (const point of points) {
+            // Calculate the original and current values
+            const originalValue = point.value;
+            const currentValue = Math.floor(Math.random() * 11); // Replace with your own algorithm for current value calculation
+
+            // Calculate the sum for this point
+            const pointSum = ((originalValue - currentValue) / originalValue) * point.value;
+
+            // Add the point's contribution to the sum
+            sum += pointSum;
+        }
+
+        // Round the sum to two decimal places
+        const roundedSum = sum.toFixed(2);
+
+        // Return the total sum as a string with two decimal places
+        return parseFloat(roundedSum);
+    }*/
+
+    // Create a Voronoi generator
     const voronoi = d3.voronoi()
-        .extent([[-1, -1], [601, 401]]); // Set the extent to cover the SVG area
+        .extent([[-1, -1], [800 + 1, 500 + 1]]);
 
-    // Generate Voronoi polygons
-    const polygons = voronoi.polygons(points.map(d => [d.x, d.y]));
+    // Array to store original cell areas
+    const originalCellAreas = [];
+
+    // Function to calculate the area of a polygon using the Shoelace formula
+    function calculatePolygonArea(polygon) {
+        return 0.5 * Math.abs(d3.polygonArea(polygon));
+    }
+
+    // Function to redraw the Voronoi diagram and display point values
+    function redraw() {
+        // Generate the Voronoi diagram
+        const polygons = voronoi.polygons(points.map(point => [point.x, point.y]));
+
+        // Remove existing cells, points, and area labels
+        svg.selectAll(".cell").remove();
+        svg.selectAll(".point").remove();
+        svg.selectAll(".cell-area").remove();
+
+        // Draw Voronoi cells and calculate and display cell areas
+        polygons.forEach((polygon, index) => {
+            if (polygon) {
+                // Calculate the area of the polygon using the Shoelace formula
+                const currentArea = calculatePolygonArea(polygon);
+                const originalArea = originalCellAreas[index] || currentArea; // Get the original area or use current area
+
+                // Display the cell area as a label
+                svg.append("text")
+                    .attr("class", "cell-area")
+                    .attr("x", d3.mean(polygon, d => d[0]))
+                    .attr("y", d3.mean(polygon, d => d[1]))
+                    .text(`Original Area: ${originalArea.toFixed(2)}, Current Area: ${currentArea.toFixed(2)}`)
+                    .style("font-size", "12px");
+
+                // Store the current area as the original area for the next redraw
+                originalCellAreas[index] = currentArea;
+
+                // Draw Voronoi cell
+                svg.append("path")
+                    .attr("class", "cell")
+                    .attr("d", "M" + polygon.join("L") + "Z");
+            }
+        });
+
+        // Draw points with values
+        svg.selectAll(".point")
+            .data(points)
+            .enter().append("circle")
+            .attr("class", "point")
+            .attr("r", 4)
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("fill", d3.interpolateViridis(d => d.value / 10)); // Color based on value;
+
+        // Display point values
+        const pointValuesDiv = document.getElementById("point-values");
+        pointValuesDiv.innerHTML = "";
+        points.forEach((point, index) => {
+            const label = document.createElement("div");
+            label.className = "point-label";
+            label.textContent = `Point ${index + 1}: Value ${point.value}`;
+            pointValuesDiv.appendChild(label);
+        });
+    }
 
     // Create an SVG element
-    const svg = d3.select("#voronoi-svg");
+    const svg = d3.select("svg");
 
-    // Draw the Voronoi polygons
-    svg.selectAll("path")
-        .data(polygons)
-        .enter().append("path")
-        .attr("d", function(d) {
-            return "M" + d.join("L") + "Z";
-        })
-        .attr("fill", "none")
-        .attr("stroke", "black");
+    // Redraw the diagram initially
+    redraw();
 
-    // Draw the points and labels
-    svg.selectAll("circle")
-        .data(points)
-        .enter().append("circle")
-        .attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; })
-        .attr("r", 4)
-        .attr("fill", "red");
+    // Add click event listener to the SVG
+    svg.on("click", function() {
+        // Get the mouse coordinates
+        const [x, y] = d3.mouse(this);
 
-    // Add labels for each point
-    svg.selectAll("text")
-        .data(points)
-        .enter().append("text")
-        .attr("x", function(d) { return d.x; })
-        .attr("y", function(d) { return d.y - 10; })
-        .attr("text-anchor", "middle") // Center the text horizontally
-        .attr("font-size", "10px") // Set the font size
-        .text(function(d) { return `#point:${d.pointNumber} value:${d.value}`; });
+        // Calculate the value using the natural_neighbor function
+        const value = natural_neighbor(x, y);
 
-    // Display point values in the div
-    const pointValuesDiv = d3.select("#point-values");
-    points.forEach(function(point) {
-        pointValuesDiv.append("p")
-            .text(`Point ${point.pointNumber}: Value:${point.value}`);
+        // Add the new point with the calculated value to the array
+        points.push({ x, y, value });
+
+        // Redraw the diagram with the new point
+        redraw();
     });
 </script>
 </body>
