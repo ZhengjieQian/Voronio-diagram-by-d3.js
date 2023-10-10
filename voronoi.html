@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voronoi Diagram with D3.js</title>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+<svg width="800" height="600"></svg>
+
+<script>
+  // Create an SVG element
+  const svg = d3.select("svg");
+  const width = +svg.attr("width");
+  const height = +svg.attr("height");
+
+  // Generate 10 random points with values
+  let points = [];
+  for (let i = 0; i < 10; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const value = Math.floor(Math.random() * 11); // Random value between 0 and 10
+    points.push({ x, y, value });
+  }
+
+  // Create a Voronoi diagram generator
+  const voronoi = d3.voronoi()
+          .x(d => d.x)
+          .y(d => d.y);
+
+  updateDiagram(); // Initial diagram rendering
+
+  // Add a click event to add points
+  svg.on("click", function() {
+    const [x, y] = d3.mouse(this); // Get the mouse click position
+    const value = Math.floor(Math.random() * 11); // Random value between 0 and 10
+    points.push({ x, y, value }); // Add the point to the array
+    updateDiagram(); // Update the diagram
+  });
+
+  // Function to update the Voronoi diagram
+  function updateDiagram() {
+    // Recreate the Voronoi diagram generator with updated points
+    voronoi.extent([[-1, -1], [width + 1, height + 1]]);
+    const polygons = voronoi.polygons(points);
+
+    // Remove the existing cells
+    svg.selectAll(".cell").remove();
+
+    // Draw Voronoi polygons
+    svg.selectAll(".cell")
+            .data(polygons)
+            .enter().append("g")
+            .attr("class", "cell")
+            .append("path")
+            .attr("d", d => d ? "M" + d.join("L") + "Z" : null)
+            .style("fill", "none")
+            .style("stroke", "black");
+
+    // Remove the existing points
+    svg.selectAll(".point").remove();
+
+    // Draw points with values
+    svg.selectAll(".point")
+            .data(points)
+            .enter().append("circle")
+            .attr("class", "point")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", 3)
+            .style("fill", "red")
+            .append("title")
+            .text(d => `Value: ${d.value}`);
+  }
+</script>
+</body>
+</html>
